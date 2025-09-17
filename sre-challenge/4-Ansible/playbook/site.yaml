@@ -1,0 +1,56 @@
+# SetUp Hello World on VM
+- name: Manage Ubuntu and RedHat servers
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Update repositories and upgrade all packages (Ubuntu)
+      when: ansible_facts['os_family'] == "Debian"
+      block:
+        - name: Update apt cache
+          apt:
+            update_cache: true
+            cache_valid_time: 3600
+
+        - name: Upgrade packages
+          apt:
+            upgrade: dist
+
+        - name: Ensure Apache is installed (Ubuntu)
+          apt:
+            name: "{{ ubuntu_packages }}"
+            state: present
+
+        - name: Create Apache hello world HTML (Ubuntu)
+          copy:
+            dest: "{{ web_server_document_root }}/{{ web_server_index_file }}"
+            content: "{{ hello_world_content }}"
+          notify:
+            - Reload apache2
+
+    - name: Update repositories and upgrade all packages (RedHat)
+      when: ansible_facts['os_family'] == "RedHat"
+      block:
+        - name: Update yum cache (RedHat)
+          command: yum makecache
+          changed_when: false
+
+        - name: Upgrade all packages (RedHat)
+          command: yum upgrade -y
+          register: yum_upgrade_result
+          changed_when: "'Nothing to do' not in yum_upgrade_result.stdout"
+
+        - name: Ensure MariaDB is installed (RedHat)
+          command: "yum install -y {{ redhat_packages | join(' ') }}"
+          register: mariadb_install_result
+          changed_when: "'Already installed' not in mariadb_install_result.stdout and 'Nothing to do' not in mariadb_install_result.stdout"
+          failed_when: false
+          ignore_errors: true
+
+  handlers:
+    - name: Reload apache2
+      when: ansible_facts['os_family'] == "Debian"
+      service:
+        name: "{{ web_service_name }}"
+        state: restarted

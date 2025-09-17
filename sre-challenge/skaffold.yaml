@@ -1,0 +1,32 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: sre-challenge
+build:
+  artifacts:
+    - image: hello-app
+      context: 1-Docker_Container
+      docker:
+        dockerfile: Dockerfile
+  local:
+    push: false
+  tagPolicy:
+    gitCommit: {}
+
+deploy:
+  helm:
+    releases:
+      - name: hello
+        chartPath: 2-Kubernetes_Deployment/hello
+        namespace: default
+        valuesFiles:
+          - 2-Kubernetes_Deployment/hello/values.yaml
+        version: 0.1.0
+        setValueTemplates:
+          image.repository: "{{.IMAGE_REPO_hello_app}}"
+          image.tag: "{{.IMAGE_TAG_hello_app}}"
+
+# profiles:
+# - name: eks
+#   activation:
+#     - kubeContext: arn:aws:eks:eu-central-1:123456789012:cluster/dev-eks  # Replace with your EKS cluster context
